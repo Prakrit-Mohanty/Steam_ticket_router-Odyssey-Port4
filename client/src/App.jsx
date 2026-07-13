@@ -1,20 +1,24 @@
-import LiquidEther from "./components/LiquidEther";
+import LightPillar from "./components/LightPillar";
 import "./App.css";
 
 export default function App() {
   return (
     <div className="app">
       <div className="liquid-bg-wrapper">
-        <LiquidEther
-  colors={["#5227FF", "#FF9FFC", "#B497CF"]}
-  mouseForce={20}
-  cursorSize={110}
-  isViscous={false}
-  resolution={0.5}
-  autoDemo
-  autoSpeed={0.4}
-  autoIntensity={1.8}
-/>
+        <LightPillar
+          topColor="#5227FF"
+          bottomColor="#FF9FFC"
+          intensity={1}
+          rotationSpeed={0.3}
+          glowAmount={0.002}
+          pillarWidth={3}
+          pillarHeight={0.4}
+          noiseIntensity={0.5}
+          pillarRotation={25}
+          interactive={false}
+          mixBlendMode="screen"
+          quality="high"
+        />
       </div>
 
       <div className="content">
