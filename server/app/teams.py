@@ -17,3 +17,5 @@ TEAM_MAP = {
     "Feature Request": "Product Team",
     "General Inquiry": "Customer Success",
 }
+
+PRIORITIES = ["High", "Medium", "Low"]
