@@ -21,15 +21,33 @@ export default function App() {
         />
       </div>
 
-      <div className="content">
-        <div className="header">
-          <div className="badge">TR</div>
-          <div>
-            <h1>Smart Ticket Router</h1>
-          </div>
+      <nav className="navbar">
+        <div className="nav-brand">
+          <span className="nav-badge">TR</span>
+          Smart Ticket Router
         </div>
-        <p className="subtitle">Port·04 — The Senate of Gods — The Translator</p>
-      </div>
+        <div className="nav-links">
+          <a href="#classify">Classify</a>
+          <a href="#batch">Batch Demo</a>
+        </div>
+        <button className="nav-cta">View on GitHub</button>
+      </nav>
+
+      <section className="hero">
+        <div className="hero-pill">
+          <span className="badge-new">NEW</span>
+          Port·04 — The Senate of Gods
+        </div>
+        <h1>AI-powered ticket triage for your game platform.</h1>
+        <p className="hero-sub">
+          Classify, prioritize, and route support tickets in seconds, not minutes —
+          built for a Steam-style platform, powered by an LLM agent.
+        </p>
+        <div className="hero-actions">
+          <button className="btn-solid">Classify a Ticket</button>
+          <button className="btn-glass">Run Batch Demo</button>
+        </div>
+      </section>
     </div>
   );
 }
