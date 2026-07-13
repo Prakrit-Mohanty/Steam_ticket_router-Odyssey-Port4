@@ -1,4 +1,4 @@
-# Smart Ticket Router
+# Steam Ticket Router
 
 An AI-powered support ticket triage tool for a Steam-style game platform. Reads a raw support message and returns structured JSON: category, priority, assigned team, reasoning, and a confidence score.
 
