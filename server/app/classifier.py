@@ -1,10 +1,13 @@
+import json
 import time
 
 from .llm_client import get_llm
 from .prompt import build_messages
 from .schema import parse_and_validate, ClassificationError
+from .similar_tickets import find_similar_tickets, TOOLS_SPEC
 
 MAX_INPUT_CHARS = 6000
+MAX_TOOL_ROUNDS = 3  # safety cap so the model can't loop calling tools forever
 
 
 class LLMCallError(Exception):
@@ -19,26 +22,30 @@ def _call_model(messages):
         completion = llm["client"].chat.completions.create(
             model=llm["model"],
             messages=messages,
+            tools=TOOLS_SPEC,
             temperature=0.2,
-            max_tokens=300,
+            max_tokens=400,
         )
-        text = completion.choices[0].message.content
-        return {"text": text, "provider": llm["provider"], "model": llm["model"]}
+        return completion.choices[0].message, llm["provider"], llm["model"]
     except Exception as e:
-        raise LLMCallError(f'Call to {llm["provider"]} ({llm["model"]}) failed: {e}', cause=e)
+        raise LLMCallError(f"Call to {llm['provider']} ({llm['model']}) failed: {e}", cause=e)
+
+
+def _run_tool(name: str, arguments: dict):
+    if name == "find_similar_tickets":
+        return find_similar_tickets(arguments.get("query", ""))
+    return {"error": f"Unknown tool {name}"}
 
 
 def classify_ticket(raw_text: str) -> dict:
     started_at = time.time()
 
-    # Edge case: empty / whitespace-only input - reject before ever calling the LLM
     trimmed = (raw_text or "").strip()
     if not trimmed:
         err = ClassificationError("Ticket text is empty.", stage="input_validation")
         err.status = 400
         raise err
 
-    # Edge case: extremely long input - truncate rather than fail or blow the token budget
     ticket_text = trimmed
     truncated = False
     if len(ticket_text) > MAX_INPUT_CHARS:
@@ -46,30 +53,56 @@ def classify_ticket(raw_text: str) -> dict:
         truncated = True
 
     messages = build_messages(ticket_text)
-    first = _call_model(messages)
+    tool_calls_made = 0
+    provider = model = None
+    final_text = None
+
+    for _ in range(MAX_TOOL_ROUNDS):
+        message, provider, model = _call_model(messages)
+
+        if message.tool_calls:
+            messages.append({
+                "role": "assistant",
+                "content": message.content,
+                "tool_calls": [tc.model_dump() for tc in message.tool_calls],
+            })
+            for tc in message.tool_calls:
+                args = json.loads(tc.function.arguments or "{}")
+                result = _run_tool(tc.function.name, args)
+                tool_calls_made += 1
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": json.dumps(result),
+                })
+            continue  # ask again, now that the tool results are in the conversation
+
+        final_text = message.content
+        break
+
+    if final_text is None:
+        raise LLMCallError("Model kept calling tools and never produced a final answer.")
 
     retried = False
     try:
-        result = parse_and_validate(first["text"])
+        result = parse_and_validate(final_text)
     except ClassificationError as first_err:
-        # One corrective retry: tell the model exactly what it got wrong.
         retried = True
-        repair_messages = messages + [
-            {"role": "assistant", "content": first["text"]},
-            {
-                "role": "user",
-                "content": f"That response was invalid: {first_err} Respond again with ONLY the corrected JSON object, nothing else.",
-            },
-        ]
-        second = _call_model(repair_messages)
-        result = parse_and_validate(second["text"])  # if this also fails, it propagates up - handled by the route
+        messages.append({"role": "assistant", "content": final_text})
+        messages.append({
+            "role": "user",
+            "content": f"That response was invalid: {first_err} Respond again with ONLY the corrected JSON object, nothing else.",
+        })
+        message, provider, model = _call_model(messages)
+        result = parse_and_validate(message.content)
 
     elapsed_ms = round((time.time() - started_at) * 1000)
     result["meta"] = {
-        "provider": first["provider"],
-        "model": first["model"],
+        "provider": provider,
+        "model": model,
         "processing_time_ms": elapsed_ms,
         "retried": retried,
         "truncated_input": truncated,
+        "tool_calls_made": tool_calls_made,
     }
     return result
