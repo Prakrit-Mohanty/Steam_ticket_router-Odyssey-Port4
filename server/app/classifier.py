@@ -3,8 +3,9 @@ import time
 
 from .llm_client import get_llm
 from .prompt import build_messages
-from .schema import parse_and_validate, ClassificationError
+from .schema import parse_and_validate, ClassificationError, _clean_raw_text
 from .similar_tickets import find_similar_tickets, TOOLS_SPEC
+from .reply_prompt import build_reply_messages
 
 MAX_INPUT_CHARS = 6000
 MAX_TOOL_ROUNDS = 3  # safety cap so the model can't loop calling tools forever
@@ -16,16 +17,13 @@ class LLMCallError(Exception):
         self.cause = cause
 
 
-def _call_model(messages):
+def _call_model(messages, tools=None):
     llm = get_llm()
     try:
-        completion = llm["client"].chat.completions.create(
-            model=llm["model"],
-            messages=messages,
-            tools=TOOLS_SPEC,
-            temperature=0.2,
-            max_tokens=400,
-        )
+        kwargs = dict(model=llm["model"], messages=messages, temperature=0.2, max_tokens=400)
+        if tools:
+            kwargs["tools"] = tools
+        completion = llm["client"].chat.completions.create(**kwargs)
         return completion.choices[0].message, llm["provider"], llm["model"]
     except Exception as e:
         raise LLMCallError(f"Call to {llm['provider']} ({llm['model']}) failed: {e}", cause=e)
@@ -93,7 +91,7 @@ def classify_ticket(raw_text: str) -> dict:
             "role": "user",
             "content": f"That response was invalid: {first_err} Respond again with ONLY the corrected JSON object, nothing else.",
         })
-        message, provider, model = _call_model(messages)
+        message, provider, model = _call_model(messages, tools=TOOLS_SPEC)
         result = parse_and_validate(message.content)
 
     elapsed_ms = round((time.time() - started_at) * 1000)
@@ -106,3 +104,18 @@ def classify_ticket(raw_text: str) -> dict:
         "tool_calls_made": tool_calls_made,
     }
     return result
+
+def draft_reply(ticket_text: str, category: str, priority: str) -> dict:
+    messages = build_reply_messages(ticket_text, category, priority)
+    message, provider, model = _call_model(messages)  # no tools needed here
+    cleaned = _clean_raw_text(message.content or "")
+    try:
+        parsed = json.loads(cleaned)
+        reply = parsed.get("reply", "").strip()
+    except json.JSONDecodeError:
+        # A draft reply is low-stakes - a human reviews it before sending - so
+        # if it didn't return clean JSON, fall back to showing the raw text
+        # rather than erroring out entirely. This is intentionally more
+        # lenient than classify_ticket, where malformed output is unacceptable.
+        reply = (message.content or "").strip()
+    return {"reply": reply, "meta": {"provider": provider, "model": model}}

@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from .classifier import classify_ticket, LLMCallError
+from .classifier import classify_ticket, draft_reply, LLMCallError
 from .schema import ClassificationError
 
 app = FastAPI(title="Smart Ticket Router")
@@ -17,6 +17,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+class DraftReplyRequest(BaseModel):
+    text: str
+    category: str
+    priority: str
 
 
 class ClassifyRequest(BaseModel):
@@ -30,6 +35,14 @@ class TicketItem(BaseModel):
 
 class BatchRequest(BaseModel):
     tickets: List[TicketItem]
+
+
+@app.post("/api/draft-reply")
+def draft_reply_endpoint(payload: DraftReplyRequest):
+    try:
+        return draft_reply(payload.text, payload.category, payload.priority)
+    except LLMCallError as e:
+        raise HTTPException(status_code=502, detail=str(e))
 
 
 @app.get("/api/health")
