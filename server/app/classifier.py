@@ -5,6 +5,7 @@ from .llm_client import get_llm
 from .prompt import build_messages
 from .schema import parse_and_validate, ClassificationError, _clean_raw_text
 from .similar_tickets import find_similar_tickets, TOOLS_SPEC
+from .guardrail import looks_like_gibberish
 from .reply_prompt import build_reply_messages
 
 MAX_INPUT_CHARS = 6000
@@ -49,6 +50,14 @@ def classify_ticket(raw_text: str) -> dict:
     if len(ticket_text) > MAX_INPUT_CHARS:
         ticket_text = ticket_text[:MAX_INPUT_CHARS]
         truncated = True
+
+    if looks_like_gibberish(ticket_text):
+        err = ClassificationError(
+            "This doesn't look like a real support message. Please describe your issue in a few words.",
+            stage="guardrail",
+        )
+        err.status = 400
+        raise err
 
     messages = build_messages(ticket_text)
     tool_calls_made = 0

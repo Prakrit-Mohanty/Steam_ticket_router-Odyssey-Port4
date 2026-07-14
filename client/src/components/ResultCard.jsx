@@ -1,0 +1,58 @@
+const LOW_CONFIDENCE_THRESHOLD = 0.5;
+
+function confidenceColor(confidence) {
+  if (confidence < LOW_CONFIDENCE_THRESHOLD) return "#ff6b6b";
+  if (confidence < 0.75) return "#f0b429";
+  return "#5ecbe0";
+}
+
+export default function ResultCard({ result }) {
+  if (!result) return null;
+  const { category, priority, assigned_team, reasoning, confidence, meta } = result;
+  const isLowConfidence = confidence < LOW_CONFIDENCE_THRESHOLD;
+
+  return (
+    <div className="result-card">
+      <div className="result-grid">
+        <div className="result-field">
+          <label>Category</label>
+          <div className="value">{category}</div>
+        </div>
+        <div className="result-field">
+          <label>Priority</label>
+          <div className="value">
+            <span className={`pill ${priority}`}>{priority}</span>
+          </div>
+        </div>
+        <div className="result-field">
+          <label>Assigned Team</label>
+          <div className="value">{assigned_team}</div>
+        </div>
+      </div>
+
+      <div className="reasoning">"{reasoning}"</div>
+
+      <div className="confidence-row">
+        <span className="confidence-label">Confidence</span>
+        <div className="confidence-bar-track">
+          <div
+            className="confidence-bar-fill"
+            style={{ width: `${Math.round(confidence * 100)}%`, background: confidenceColor(confidence) }}
+          />
+        </div>
+        <span style={{ fontSize: 12, color: confidenceColor(confidence) }}>{Math.round(confidence * 100)}%</span>
+      </div>
+
+      {isLowConfidence && <div className="flag">⚠ Low confidence - flagged for human review</div>}
+
+      {meta && (
+        <div className="meta-row">
+          <span>provider: {meta.provider}/{meta.model}</span>
+          <span>time: {meta.processing_time_ms}ms</span>
+          {meta.tool_calls_made > 0 && <span>🔎 checked {meta.tool_calls_made} similar ticket(s)</span>}
+          {meta.retried && <span>⟳ needed 1 auto-repair retry</span>}
+        </div>
+      )}
+    </div>
+  );
+}

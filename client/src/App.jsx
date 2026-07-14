@@ -1,7 +1,19 @@
+import { useState } from "react";
 import LightPillar from "./components/LightPillar";
+import TicketForm from "./components/TicketForm";
+import BatchDemo from "./components/BatchDemo";
+import StatsDashboard from "./components/StatsDashboard";
 import "./App.css";
 
 export default function App() {
+  const [history, setHistory] = useState([]);
+
+  function recordResult(result) {
+    if (result?.meta) {
+      setHistory((prev) => [...prev, result.meta]);
+    }
+  }
+
   return (
     <div className="app">
       <div className="liquid-bg-wrapper">
@@ -44,10 +56,20 @@ export default function App() {
           built for a Steam-style platform, powered by an LLM agent.
         </p>
         <div className="hero-actions">
-          <button className="btn-solid">Classify a Ticket</button>
-          <button className="btn-glass">Run Batch Demo</button>
+          <a href="#classify" className="btn-solid">Classify a Ticket</a>
+          <a href="#batch" className="btn-glass">Run Batch Demo</a>
         </div>
       </section>
+
+      <main id="main-content">
+        <div id="classify">
+          <TicketForm onClassified={recordResult} />
+        </div>
+        <div id="batch">
+          <BatchDemo onClassified={recordResult} />
+        </div>
+        <StatsDashboard history={history} />
+      </main>
     </div>
   );
 }
