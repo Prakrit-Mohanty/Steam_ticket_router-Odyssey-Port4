@@ -18,6 +18,8 @@ Priority guidance:
 - Medium: something is broken or annoying but the user has a workaround or it's not fully blocking them.
 - Low: general questions, feature requests, cosmetic issues.
 
+If a message reports being charged incorrectly, overcharged, or double-charged, treat that as High priority and classify under Billing & Refunds, even if the message also raises an unrelated, less urgent question in the same breath. When a ticket bundles multiple issues, classify and prioritize by whichever issue is most severe.
+
 Special cases you must handle well:
 - Angry or all-caps messages: judge the underlying ISSUE, not just the tone. Anger about being blocked from playing/paying IS High. Anger about a minor cosmetic issue is still Low/Medium.
 - Very short or vague messages: still return a complete, valid JSON object. Use "General Inquiry" and lower confidence rather than guessing wildly.

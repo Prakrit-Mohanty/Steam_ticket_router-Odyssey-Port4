@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 const LOW_CONFIDENCE_THRESHOLD = 0.5;
 
 function confidenceColor(confidence) {
@@ -7,6 +9,7 @@ function confidenceColor(confidence) {
 }
 
 export default function ResultCard({ result }) {
+  const [showJson, setShowJson] = useState(false);
   if (!result) return null;
   const { category, priority, assigned_team, reasoning, confidence, meta } = result;
   const isLowConfidence = confidence < LOW_CONFIDENCE_THRESHOLD;
@@ -53,6 +56,11 @@ export default function ResultCard({ result }) {
           {meta.retried && <span>⟳ needed 1 auto-repair retry</span>}
         </div>
       )}
+
+      <button className="json-toggle" onClick={() => setShowJson((v) => !v)}>
+        {showJson ? "Hide Raw JSON ▲" : "View Raw JSON ▼"}
+      </button>
+      {showJson && <pre className="json-view">{JSON.stringify(result, null, 2)}</pre>}
     </div>
   );
 }

@@ -12,6 +12,7 @@ const CATEGORIES = [
   "General Inquiry",
 ];
 const PRIORITIES = ["High", "Medium", "Low"];
+const GUARDRAIL_SNIPPET = "doesn't look like a real support message";
 
 export default function ManualVsAIChallenge() {
   const [phase, setPhase] = useState("idle"); // idle | manual | ai | done
@@ -19,6 +20,7 @@ export default function ManualVsAIChallenge() {
   const [manualAnswers, setManualAnswers] = useState([]);
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [priority, setPriority] = useState(PRIORITIES[0]);
+  const [flagged, setFlagged] = useState(false);
   const [aiResults, setAiResults] = useState([]);
   const [aiProgress, setAiProgress] = useState(0);
   const ticketStartRef = useRef(null);
@@ -29,6 +31,7 @@ export default function ManualVsAIChallenge() {
     setManualAnswers([]);
     setCategory(CATEGORIES[0]);
     setPriority(PRIORITIES[0]);
+    setFlagged(false);
     ticketStartRef.current = performance.now();
   }
 
@@ -36,9 +39,15 @@ export default function ManualVsAIChallenge() {
     const now = performance.now();
     const ticket = sampleTickets[index];
     const timeMs = Math.round(now - ticketStartRef.current);
-    setManualAnswers((prev) => [...prev, { id: ticket.id, text: ticket.text, category, priority, timeMs }]);
+    setManualAnswers((prev) => [
+      ...prev,
+      flagged
+        ? { id: ticket.id, text: ticket.text, flagged: true, timeMs }
+        : { id: ticket.id, text: ticket.text, category, priority, flagged: false, timeMs },
+    ]);
     setCategory(CATEGORIES[0]);
     setPriority(PRIORITIES[0]);
+    setFlagged(false);
 
     if (index + 1 >= sampleTickets.length) {
       runAiPass();
@@ -58,10 +67,15 @@ export default function ManualVsAIChallenge() {
         const result = await classifyOne(ticket.text);
         setAiResults((prev) => [...prev, {
           id: ticket.id, text: ticket.text, category: result.category,
-          priority: result.priority, timeMs: result.meta.processing_time_ms,
+          priority: result.priority, timeMs: result.meta.processing_time_ms, flagged: false,
         }]);
       } catch (err) {
-        setAiResults((prev) => [...prev, { id: ticket.id, text: ticket.text, error: err.message }]);
+        const isGuardrail = err.message.includes(GUARDRAIL_SNIPPET);
+        setAiResults((prev) => [...prev, {
+          id: ticket.id, text: ticket.text,
+          flagged: isGuardrail,
+          error: isGuardrail ? null : err.message,
+        }]);
       }
       setAiProgress(Math.round(((i + 1) / sampleTickets.length) * 100));
     }
@@ -72,7 +86,10 @@ export default function ManualVsAIChallenge() {
   const totalAiMs = aiResults.reduce((s, a) => s + (a.timeMs || 0), 0);
   const agreementCount = manualAnswers.filter((m) => {
     const ai = aiResults.find((a) => a.id === m.id);
-    return ai && ai.category === m.category;
+    if (!ai) return false;
+    if (m.flagged && ai.flagged) return true;
+    if (!m.flagged && !ai.flagged && !ai.error) return ai.category === m.category;
+    return false;
   }).length;
   const maxMs = Math.max(totalManualMs, totalAiMs, 1);
 
@@ -102,20 +119,29 @@ export default function ManualVsAIChallenge() {
         <div className="manual-challenge">
           <div className="manual-progress">Ticket {index + 1} of {sampleTickets.length}</div>
           <div className="manual-ticket-text">"{sampleTickets[index].text}"</div>
-          <div className="manual-controls">
-            <div>
-              <label>Category</label>
-              <select value={category} onChange={(e) => setCategory(e.target.value)}>
-                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
+
+          <label className="flag-checkbox">
+            <input type="checkbox" checked={flagged} onChange={(e) => setFlagged(e.target.checked)} />
+            🚩 This doesn't look like a real support message
+          </label>
+
+          {!flagged && (
+            <div className="manual-controls">
+              <div>
+                <label>Category</label>
+                <select value={category} onChange={(e) => setCategory(e.target.value)}>
+                  {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label>Priority</label>
+                <select value={priority} onChange={(e) => setPriority(e.target.value)}>
+                  {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
             </div>
-            <div>
-              <label>Priority</label>
-              <select value={priority} onChange={(e) => setPriority(e.target.value)}>
-                {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-          </div>
+          )}
+
           <button className="btn-solid" onClick={submitTicket}>
             {index + 1 === sampleTickets.length ? "Submit Final Ticket" : "Submit & Next"}
           </button>
@@ -176,8 +202,8 @@ export default function ManualVsAIChallenge() {
               <thead>
                 <tr>
                   <th>Ticket</th>
-                  <th>Your Category</th>
-                  <th>AI Category</th>
+                  <th>Your Answer</th>
+                  <th>AI Answer</th>
                   <th>Match</th>
                   <th>Your Time</th>
                   <th>AI Time</th>
@@ -186,12 +212,14 @@ export default function ManualVsAIChallenge() {
               <tbody>
                 {manualAnswers.map((m) => {
                   const ai = aiResults.find((a) => a.id === m.id);
-                  const match = ai && !ai.error && ai.category === m.category;
+                  const match = ai && ((m.flagged && ai.flagged) || (!m.flagged && !ai.flagged && !ai.error && ai.category === m.category));
                   return (
                     <tr key={m.id}>
                       <td>{m.text}</td>
-                      <td>{m.category}</td>
-                      <td>{ai?.error ? "⚠ error" : ai?.category}</td>
+                      <td>{m.flagged ? "🚩 Not a real message" : m.category}</td>
+                      <td>
+                        {ai?.error ? "⚠ error" : ai?.flagged ? "🚩 Not a real message" : ai?.category}
+                      </td>
                       <td>{ai?.error ? "—" : match ? "✅" : "❌"}</td>
                       <td>{fmt(m.timeMs)}</td>
                       <td>{ai?.timeMs ? fmt(ai.timeMs) : "—"}</td>

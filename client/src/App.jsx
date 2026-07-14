@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import LightPillar from "./components/LightPillar";
 import TicketForm from "./components/TicketForm";
 import BatchDemo from "./components/BatchDemo";
@@ -6,12 +6,12 @@ import ManualVsAIChallenge from "./components/ManualVsAIChallenge";
 import "./App.css";
 
 export default function App() {
-  const [history, setHistory] = useState([]);
+  const [tab, setTab] = useState("classify");
+  const mainRef = useRef(null);
 
-  function recordResult(result) {
-    if (result?.meta) {
-      setHistory((prev) => [...prev, result.meta]);
-    }
+  function goTo(nextTab) {
+    setTab(nextTab);
+    mainRef.current?.scrollIntoView({ behavior: "smooth" });
   }
 
   return (
@@ -39,10 +39,11 @@ export default function App() {
           Smart Ticket Router
         </div>
         <div className="nav-links">
-          <a href="#classify">Classify</a>
-          <a href="#batch">Batch Demo</a>
+          <button className={tab === "classify" ? "active" : ""} onClick={() => goTo("classify")}>Classify</button>
+          <button className={tab === "batch" ? "active" : ""} onClick={() => goTo("batch")}>Batch Demo</button>
+          <button className={tab === "manual" ? "active" : ""} onClick={() => goTo("manual")}>You vs AI</button>
         </div>
-        <button className="nav-cta">View on GitHub</button>
+        <a className="nav-cta" href="https://github.com/Prakrit-Mohanty/Steam_ticket_router-Odyssey-Port4" target="_blank" rel="noopener noreferrer">View on GitHub</a>
       </nav>
 
       <section className="hero">
@@ -56,19 +57,15 @@ export default function App() {
           built for a Steam-style platform, powered by an LLM agent.
         </p>
         <div className="hero-actions">
-          <a href="#classify" className="btn-solid">Classify a Ticket</a>
-          <a href="#batch" className="btn-glass">Run Batch Demo</a>
+          <button className="btn-solid" onClick={() => goTo("classify")}>Classify a Ticket</button>
+          <button className="btn-glass" onClick={() => goTo("batch")}>Run Batch Demo</button>
         </div>
       </section>
 
-      <main id="main-content">
-        <div id="classify">
-          <TicketForm onClassified={recordResult} />
-        </div>
-        <div id="batch">
-          <BatchDemo onClassified={recordResult} />
-        </div>
-        <ManualVsAIChallenge />
+      <main id="main-content" ref={mainRef}>
+        {tab === "classify" && <TicketForm />}
+        {tab === "batch" && <BatchDemo />}
+        {tab === "manual" && <ManualVsAIChallenge />}
       </main>
     </div>
   );
