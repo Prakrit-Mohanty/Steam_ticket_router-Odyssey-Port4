@@ -62,7 +62,7 @@ Opens on `http://localhost:5173`, talks to the backend at `http://localhost:4000
 | Ambiguous ticket (fits 2+ categories) | prompt few-shot + tool-calling agent | Picks one, reasoning explains why; may check similar past tickets first |
 | Empty input | `classifier.py` | Rejected before calling the LLM, clean 400 |
 | Very long input | `classifier.py` | Truncated to 6000 chars, flagged in response |
-| Wrong language | tested in `sampleTickets.js` (#19) | Classified natively in that language, no special-casing needed |
+| Wrong language | tested in `sampleTickets.js` (#19) | Understands non-English input correctly (verified with a Spanish ticket → correctly classified as Account & Login), though reasoning is returned in English since that's the prompt's language |
 | API/network failure | `classifier.py` + `main.py` | Caught, returns a clean error — server keeps running |
 
 
