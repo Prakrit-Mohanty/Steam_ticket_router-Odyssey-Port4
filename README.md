@@ -65,15 +65,4 @@ Opens on `http://localhost:5173`, talks to the backend at `http://localhost:4000
 | Wrong language | tested in `sampleTickets.js` (#19) | Classified natively in that language, no special-casing needed |
 | API/network failure | `classifier.py` + `main.py` | Caught, returns a clean error — server keeps running |
 
-## Talking points for the mentor demo
-
-- **"Explain this like I'm a PM"**: the model is given strict formatting rules and examples, then its output is double-checked in code before we trust it — ask nicely, then verify, not ask and hope.
-- **"Why this approach?"**: closed enums + few-shot examples + schema validation, because open-ended prompts are where models drift into invalid JSON.
-- **"Where is it most likely to be wrong?"**: genuinely ambiguous tickets and very short messages with no real signal — exactly what the confidence score and the tool-calling agent are designed to catch.
-- **"What did you figure out that wasn't in the instructions?"**: that letting the LLM also pick the team added unnecessary inconsistency, so it was moved to a deterministic lookup; also that the model sometimes calls the similar-tickets tool even when it isn't strictly needed — a real, observed example of AI unreliability, not a hypothetical.
-- **"What would you do differently?"**: replace the keyword-overlap similarity search in `similar_tickets.py` with embeddings for more accurate semantic matching.
-
-## A note on the 2-week grading window
-
-Commit history is graded — a spread of commits across the sprint scores better than one big commit the night before. Commit in small chunks as you extend this, rather than all at once.
 
