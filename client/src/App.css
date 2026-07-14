@@ -274,3 +274,28 @@ table.batch-table td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,
 
 .progress-track { height: 6px; background: rgba(255,255,255,0.1); border-radius: 999px; overflow: hidden; margin-top: 14px; }
 .progress-fill { height: 100%; background: linear-gradient(90deg, #5227FF, #FF9FFC); transition: width 0.25s ease; }
+
+
+.manual-challenge { margin-top: 8px; }
+.manual-progress { font-size: 12px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+.manual-ticket-text {
+  font-size: 20px; font-weight: 600; color: #fff;
+  background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px; padding: 24px; margin-bottom: 20px; line-height: 1.4;
+}
+.manual-controls { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.manual-controls > div { display: flex; flex-direction: column; gap: 6px; }
+.manual-controls label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(255,255,255,0.5); }
+.manual-controls select {
+  background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.18);
+  color: #fff; padding: 10px 14px; border-radius: 8px; font-size: 14px; min-width: 200px;
+}
+
+.compare-bars { margin: 24px 0; display: flex; flex-direction: column; gap: 12px; }
+.compare-bar-row { display: flex; align-items: center; gap: 12px; }
+.compare-bar-label { width: 40px; font-size: 13px; color: rgba(255,255,255,0.7); font-weight: 600; }
+.compare-bar-track { flex: 1; height: 22px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; }
+.compare-bar-fill { height: 100%; border-radius: 999px; transition: width 0.6s ease; }
+.compare-bar-fill.you { background: linear-gradient(90deg, #ff9ffc, #5227ff); }
+.compare-bar-fill.ai { background: linear-gradient(90deg, #5ecbe0, #2a8ea3); }
+.compare-bar-value { width: 70px; text-align: right; font-size: 13px; color: #fff; font-family: monospace; }

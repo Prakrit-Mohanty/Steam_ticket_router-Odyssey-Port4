@@ -2,7 +2,7 @@ import { useState } from "react";
 import LightPillar from "./components/LightPillar";
 import TicketForm from "./components/TicketForm";
 import BatchDemo from "./components/BatchDemo";
-import StatsDashboard from "./components/StatsDashboard";
+import ManualVsAIChallenge from "./components/ManualVsAIChallenge";
 import "./App.css";
 
 export default function App() {
@@ -68,7 +68,7 @@ export default function App() {
         <div id="batch">
           <BatchDemo onClassified={recordResult} />
         </div>
-        <StatsDashboard history={history} />
+        <ManualVsAIChallenge />
       </main>
     </div>
   );
