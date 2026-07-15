@@ -3,10 +3,14 @@ import LightPillar from "./components/LightPillar";
 import TicketForm from "./components/TicketForm";
 import BatchDemo from "./components/BatchDemo";
 import ManualVsAIChallenge from "./components/ManualVsAIChallenge";
-import "./App.css";
 import AllTickets from "./components/AllTickets";
+import LoginPage from "./components/LoginPage";
+import { isLoggedIn, logout, getRole } from "./api";
+import "./App.css";
 
 export default function App() {
+  const [authed, setAuthed] = useState(isLoggedIn());
+  const [role, setRole] = useState(getRole());
   const [tab, setTab] = useState("classify");
   const mainRef = useRef(null);
 
@@ -14,6 +18,23 @@ export default function App() {
     setTab(nextTab);
     mainRef.current?.scrollIntoView({ behavior: "smooth" });
   }
+
+  function handleLogout() {
+    logout();
+    setAuthed(false);
+    setRole(null);
+  }
+
+  function handleAuthSuccess() {
+    setAuthed(true);
+    setRole(getRole());
+  }
+
+  if (!authed) {
+    return <LoginPage onLoginSuccess={handleAuthSuccess} />;
+  }
+
+  const ticketsTabLabel = role === "admin" ? "All Tickets" : "My Tickets";
 
   return (
     <div className="app">
@@ -43,9 +64,14 @@ export default function App() {
           <button className={tab === "classify" ? "active" : ""} onClick={() => goTo("classify")}>Classify</button>
           <button className={tab === "batch" ? "active" : ""} onClick={() => goTo("batch")}>Batch Demo</button>
           <button className={tab === "manual" ? "active" : ""} onClick={() => goTo("manual")}>You vs AI</button>
-          <button className={tab === "tickets" ? "active" : ""} onClick={() => goTo("tickets")}>All Tickets</button>
+          <button className={tab === "tickets" ? "active" : ""} onClick={() => goTo("tickets")}>{ticketsTabLabel}</button>
         </div>
-        <a className="nav-cta" href="https://github.com/Prakrit-Mohanty/Steam_ticket_router-Odyssey-Port4" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <a className="nav-cta" href="https://github.com/Prakrit-Mohanty/Steam_ticket_router-Odyssey-Port4" target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
+            View on GitHub
+          </a>
+          <button className="btn-glass" onClick={handleLogout}>Log Out</button>
+        </div>
       </nav>
 
       <section className="hero">
