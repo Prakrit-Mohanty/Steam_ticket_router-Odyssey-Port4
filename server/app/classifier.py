@@ -11,16 +11,16 @@ from .reply_prompt import build_reply_messages
 
 MAX_INPUT_CHARS = 6000
 MAX_TOOL_ROUNDS = 3  # safety cap so the model can't loop calling tools forever
+MAX_JSON_RETRIES = 2  # corrective retries after the first parse failure, before trying the fallback provider
+
+MAX_RETRIES = 2
+RETRY_BASE_DELAY = 2  # seconds; doubles each retry (2s, then 4s)
 
 
 class LLMCallError(Exception):
     def __init__(self, message, cause=None):
         super().__init__(message)
         self.cause = cause
-
-
-MAX_RETRIES = 2
-RETRY_BASE_DELAY = 2  # seconds; doubles each retry (2s, then 4s)
 
 
 def _call_once(llm, messages, tools):
@@ -35,8 +35,6 @@ def _call_model(messages, tools=None):
     llm = get_llm()
     last_error = None
 
-    # Retry the primary provider a couple times - covers transient blips
-    # like rate limits or a dropped connection.
     for attempt in range(MAX_RETRIES + 1):
         try:
             message = _call_once(llm, messages, tools)
@@ -47,10 +45,8 @@ def _call_model(messages, tools=None):
                 time.sleep(RETRY_BASE_DELAY * (2 ** attempt))
         except Exception as e:
             last_error = e
-            break  # not a transient error - no point retrying the same provider
+            break
 
-    # Primary provider is still down - fail over to the other configured
-    # provider once, so a single provider outage doesn't take the demo down.
     fallback = get_fallback_llm()
     if fallback:
         try:
@@ -66,6 +62,23 @@ def _run_tool(name: str, arguments: dict):
     if name == "find_similar_tickets":
         return find_similar_tickets(arguments.get("query", ""))
     return {"error": f"Unknown tool {name}"}
+
+
+def _try_fallback_provider_fresh(ticket_text: str):
+    """Last resort: if the primary provider can't produce valid JSON even
+    after corrective retries, try one fresh classification on the *other*
+    configured provider - a different model sometimes succeeds where the
+    first one kept failing."""
+    fallback = get_fallback_llm()
+    if not fallback:
+        return None, None, None
+    try:
+        fresh_messages = build_messages(ticket_text)
+        message = _call_once(fallback, fresh_messages, None)
+        result = parse_and_validate(message.content)
+        return result, fallback["provider"], fallback["model"]
+    except Exception:
+        return None, None, None
 
 
 def classify_ticket(raw_text: str) -> dict:
@@ -123,17 +136,39 @@ def classify_ticket(raw_text: str) -> dict:
         raise LLMCallError("Model kept calling tools and never produced a final answer.")
 
     retried = False
+    used_fallback = False
+    result = None
+    last_error = None
+
     try:
         result = parse_and_validate(final_text)
-    except ClassificationError as first_err:
+    except ClassificationError as err:
+        last_error = err
         retried = True
+
+    attempt = 0
+    while result is None and attempt < MAX_JSON_RETRIES:
+        attempt += 1
         messages.append({"role": "assistant", "content": final_text})
         messages.append({
             "role": "user",
-            "content": f"That response was invalid: {first_err} Respond again with ONLY the corrected JSON object, nothing else.",
+            "content": f"That response was invalid: {last_error} Respond again with ONLY the corrected JSON object, nothing else.",
         })
-        message, provider, model = _call_model(messages, tools=TOOLS_SPEC)
-        result = parse_and_validate(message.content)
+        try:
+            message, provider, model = _call_model(messages, tools=TOOLS_SPEC)
+            final_text = message.content
+            result = parse_and_validate(final_text)
+        except ClassificationError as err:
+            last_error = err
+
+    if result is None:
+        result, fb_provider, fb_model = _try_fallback_provider_fresh(ticket_text)
+        if result is not None:
+            provider, model = fb_provider, fb_model
+            used_fallback = True
+
+    if result is None:
+        raise last_error
 
     elapsed_ms = round((time.time() - started_at) * 1000)
     result["meta"] = {
@@ -141,10 +176,12 @@ def classify_ticket(raw_text: str) -> dict:
         "model": model,
         "processing_time_ms": elapsed_ms,
         "retried": retried,
+        "used_fallback_provider": used_fallback,
         "truncated_input": truncated,
         "tool_calls_made": tool_calls_made,
     }
     return result
+
 
 def draft_reply(ticket_text: str, category: str, priority: str) -> dict:
     messages = build_reply_messages(ticket_text, category, priority)
@@ -154,9 +191,5 @@ def draft_reply(ticket_text: str, category: str, priority: str) -> dict:
         parsed = json.loads(cleaned)
         reply = parsed.get("reply", "").strip()
     except json.JSONDecodeError:
-        # A draft reply is low-stakes - a human reviews it before sending - so
-        # if it didn't return clean JSON, fall back to showing the raw text
-        # rather than erroring out entirely. This is intentionally more
-        # lenient than classify_ticket, where malformed output is unacceptable.
         reply = (message.content or "").strip()
     return {"reply": reply, "meta": {"provider": provider, "model": model}}

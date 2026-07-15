@@ -61,11 +61,11 @@ export default function App() {
           Smart Ticket Router
         </div>
         <div className="nav-links">
-          <button className={tab === "classify" ? "active" : ""} onClick={() => goTo("classify")}>Classify</button>
-          <button className={tab === "batch" ? "active" : ""} onClick={() => goTo("batch")}>Batch Demo</button>
+        <button className={tab === "classify" ? "active" : ""} onClick={() => goTo("classify")}>Classify</button>
+        <button className={tab === "tickets" ? "active" : ""} onClick={() => goTo("tickets")}>{ticketsTabLabel}</button>
+        <button className={tab === "batch" ? "active" : ""} onClick={() => goTo("batch")}>Batch Demo</button>
           <button className={tab === "manual" ? "active" : ""} onClick={() => goTo("manual")}>You vs AI</button>
-          <button className={tab === "tickets" ? "active" : ""} onClick={() => goTo("tickets")}>{ticketsTabLabel}</button>
-        </div>
+</div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <a className="nav-cta" href="https://github.com/Prakrit-Mohanty/Steam_ticket_router-Odyssey-Port4" target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
             View on GitHub
