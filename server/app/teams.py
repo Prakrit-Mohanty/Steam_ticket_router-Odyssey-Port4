@@ -19,3 +19,9 @@ TEAM_MAP = {
 }
 
 PRIORITIES = ["High", "Medium", "Low"]
+
+RESOLUTION_ESTIMATE = {
+    "High": "Under 4 hours",
+    "Medium": "1-2 business days",
+    "Low": "3-5 business days",
+}

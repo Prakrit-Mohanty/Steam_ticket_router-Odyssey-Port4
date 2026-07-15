@@ -14,24 +14,77 @@ const CATEGORIES = [
 const PRIORITIES = ["High", "Medium", "Low"];
 const GUARDRAIL_SNIPPET = "doesn't look like a real support message";
 
+// Mirrors server/app/teams.py - the LLM only ever picks a category,
+// team assignment is a fixed lookup, never left to the model.
+const TEAM_MAP = {
+  "Billing & Refunds": "Payments Team",
+  "Account & Login": "Account Security Team",
+  "Game Library & Downloads": "Platform Engineering",
+  "Technical Performance": "Technical Support",
+  "Community & Moderation": "Trust & Safety",
+  "Feature Request": "Product Team",
+  "General Inquiry": "Customer Success",
+};
+
+// Mirrors server/app/routing.py
+const PRIORITY_TO_ROLE = { High: "Manager", Medium: "Senior", Low: "Junior" };
+
+// Mirrors server/app/seed.py
+const ROSTER = {
+  "Payments Team": { Manager: "Rachel Kim", Senior: "Diego Torres", Junior: "Amy Chen" },
+  "Account Security Team": { Manager: "Marcus Webb", Senior: "Priya Nair", Junior: "Jordan Lee" },
+  "Platform Engineering": { Manager: "Elena Rossi", Senior: "Sam Okafor", Junior: "Taylor Wu" },
+  "Technical Support": { Manager: "Grace Park", Senior: "Liam O'Brien", Junior: "Noah Ahmed" },
+  "Trust & Safety": { Manager: "Olivia Bennett", Senior: "Carlos Ruiz", Junior: "Mia Johnson" },
+  "Product Team": { Manager: "Ethan Brooks", Senior: "Sofia Martins", Junior: "Ben Carter" },
+  "Customer Success": { Manager: "Ava Thompson", Senior: "Ryan Patel", Junior: "Zoe Davis" },
+};
+
+const TEAMS = Object.keys(ROSTER);
+
+function peopleForTeam(team) {
+  return team ? Object.entries(ROSTER[team] || {}) : []; // [[role, name], ...]
+}
+
+function resolveAssignment(category, priority) {
+  const team = TEAM_MAP[category];
+  const role = PRIORITY_TO_ROLE[priority];
+  const person = team ? ROSTER[team]?.[role] : null;
+  return { team, role, person };
+}
+
 export default function ManualVsAIChallenge() {
   const [phase, setPhase] = useState("idle"); // idle | manual | ai | done
   const [index, setIndex] = useState(0);
   const [manualAnswers, setManualAnswers] = useState([]);
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [priority, setPriority] = useState(PRIORITIES[0]);
+  const [team, setTeam] = useState(TEAMS[0]);
+  const [person, setPerson] = useState(peopleForTeam(TEAMS[0])[0]?.[1] || "");
   const [flagged, setFlagged] = useState(false);
   const [aiResults, setAiResults] = useState([]);
   const [aiProgress, setAiProgress] = useState(0);
   const ticketStartRef = useRef(null);
 
+  function resetPicks() {
+    setCategory(CATEGORIES[0]);
+    setPriority(PRIORITIES[0]);
+    setTeam(TEAMS[0]);
+    setPerson(peopleForTeam(TEAMS[0])[0]?.[1] || "");
+    setFlagged(false);
+  }
+
+  function handleTeamChange(newTeam) {
+    setTeam(newTeam);
+    const first = peopleForTeam(newTeam)[0];
+    setPerson(first ? first[1] : "");
+  }
+
   function start() {
     setPhase("manual");
     setIndex(0);
     setManualAnswers([]);
-    setCategory(CATEGORIES[0]);
-    setPriority(PRIORITIES[0]);
-    setFlagged(false);
+    resetPicks();
     ticketStartRef.current = performance.now();
   }
 
@@ -39,15 +92,15 @@ export default function ManualVsAIChallenge() {
     const now = performance.now();
     const ticket = sampleTickets[index];
     const timeMs = Math.round(now - ticketStartRef.current);
+    const role = Object.entries(ROSTER[team] || {}).find(([, name]) => name === person)?.[0];
+
     setManualAnswers((prev) => [
       ...prev,
       flagged
         ? { id: ticket.id, text: ticket.text, flagged: true, timeMs }
-        : { id: ticket.id, text: ticket.text, category, priority, flagged: false, timeMs },
+        : { id: ticket.id, text: ticket.text, category, priority, team, person, role, flagged: false, timeMs },
     ]);
-    setCategory(CATEGORIES[0]);
-    setPriority(PRIORITIES[0]);
-    setFlagged(false);
+    resetPicks();
 
     if (index + 1 >= sampleTickets.length) {
       runAiPass();
@@ -65,9 +118,11 @@ export default function ManualVsAIChallenge() {
       const ticket = sampleTickets[i];
       try {
         const result = await classifyOne(ticket.text);
+        const assignment = resolveAssignment(result.category, result.priority);
         setAiResults((prev) => [...prev, {
           id: ticket.id, text: ticket.text, category: result.category,
-          priority: result.priority, timeMs: result.meta.processing_time_ms, flagged: false,
+          priority: result.priority, ...assignment,
+          timeMs: result.meta.processing_time_ms, flagged: false,
         }]);
       } catch (err) {
         const isGuardrail = err.message.includes(GUARDRAIL_SNIPPET);
@@ -105,8 +160,8 @@ export default function ManualVsAIChallenge() {
     <div className="panel">
       <h2>You vs AI: Sort the Same 20 Tickets</h2>
       <p className="panel-sub">
-        Manually categorize and prioritize all 20 tickets yourself, timed. Then the AI classifies
-        the exact same 20, and we compare real numbers - not a guess.
+        Manually categorize, prioritize, and route all 20 tickets yourself - team and assignee
+        included, timed. Then the AI classifies the exact same 20, and we compare real numbers.
       </p>
 
       {phase === "idle" && (
@@ -137,6 +192,20 @@ export default function ManualVsAIChallenge() {
                 <label>Priority</label>
                 <select value={priority} onChange={(e) => setPriority(e.target.value)}>
                   {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+              <div>
+                <label>Team</label>
+                <select value={team} onChange={(e) => handleTeamChange(e.target.value)}>
+                  {TEAMS.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label>Assigned To</label>
+                <select value={person} onChange={(e) => setPerson(e.target.value)}>
+                  {peopleForTeam(team).map(([role, name]) => (
+                    <option key={name} value={name}>{name} ({role})</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -203,7 +272,9 @@ export default function ManualVsAIChallenge() {
                 <tr>
                   <th>Ticket</th>
                   <th>Your Answer</th>
+                  <th>Your Routing</th>
                   <th>AI Answer</th>
+                  <th>AI Routing</th>
                   <th>Match</th>
                   <th>Your Time</th>
                   <th>AI Time</th>
@@ -216,10 +287,12 @@ export default function ManualVsAIChallenge() {
                   return (
                     <tr key={m.id}>
                       <td>{m.text}</td>
-                      <td>{m.flagged ? "🚩 Not a real message" : m.category}</td>
+                      <td>{m.flagged ? "🚩 Not a real message" : `${m.category} / ${m.priority}`}</td>
+                      <td>{m.flagged ? "—" : `${m.team} → ${m.person} (${m.role})`}</td>
                       <td>
-                        {ai?.error ? "⚠ error" : ai?.flagged ? "🚩 Not a real message" : ai?.category}
+                        {ai?.error ? "⚠ error" : ai?.flagged ? "🚩 Not a real message" : `${ai?.category} / ${ai?.priority}`}
                       </td>
+                      <td>{ai?.error || ai?.flagged ? "—" : `${ai?.team} → ${ai?.person} (${ai?.role})`}</td>
                       <td>{ai?.error ? "—" : match ? "✅" : "❌"}</td>
                       <td>{fmt(m.timeMs)}</td>
                       <td>{ai?.timeMs ? fmt(ai.timeMs) : "—"}</td>

@@ -1,6 +1,7 @@
 import json
 import re
 from pydantic import BaseModel, Field, field_validator, ValidationError
+from .teams import CATEGORIES, PRIORITIES, TEAM_MAP, RESOLUTION_ESTIMATE
 
 from .teams import CATEGORIES, PRIORITIES, TEAM_MAP
 
@@ -15,8 +16,10 @@ class ClassificationError(Exception):
 class RawClassification(BaseModel):
     category: str
     priority: str
+    work_item_description: str = Field(min_length=1, max_length=300)
     reasoning: str = Field(min_length=1, max_length=500)
     confidence: float = Field(ge=0, le=1)
+    
 
     @field_validator("category")
     @classmethod
@@ -60,7 +63,9 @@ def parse_and_validate(raw_text: str) -> dict:
     return {
         "category": result.category,
         "priority": result.priority,
+        "work_item_description": result.work_item_description,
         "assigned_team": TEAM_MAP[result.category],
+        "estimated_resolution": RESOLUTION_ESTIMATE[result.priority],
         "reasoning": result.reasoning,
         "confidence": result.confidence,
     }

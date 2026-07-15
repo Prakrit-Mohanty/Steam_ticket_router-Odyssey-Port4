@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { classifyOne } from "../api";
+import { createTicket } from "../api";
 import ResultCard from "./ResultCard";
 
 export default function TicketForm({ onClassified }) {
@@ -14,9 +14,10 @@ export default function TicketForm({ onClassified }) {
     setError(null);
     setResult(null);
     try {
-      const data = await classifyOne(text);
+      const data = await createTicket(text);
       setResult(data);
       onClassified?.(data);
+      setText("");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -26,8 +27,8 @@ export default function TicketForm({ onClassified }) {
 
   return (
     <div className="panel">
-      <h2>Classify a Ticket</h2>
-      <p className="panel-sub">Paste any support message and see how the AI routes it.</p>
+      <h2>Submit a Ticket</h2>
+      <p className="panel-sub">Paste any support message — it's classified, routed, and saved as a real ticket.</p>
       <form onSubmit={submit}>
         <textarea
           className="ticket-input"
@@ -37,7 +38,7 @@ export default function TicketForm({ onClassified }) {
         />
         <div className="row">
           <button className="btn-solid" type="submit" disabled={loading || !text.trim()}>
-            {loading ? "Classifying…" : "Classify Ticket"}
+            {loading ? "Submitting…" : "Submit Ticket"}
           </button>
         </div>
       </form>

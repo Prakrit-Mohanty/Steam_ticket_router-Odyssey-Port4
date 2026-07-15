@@ -25,3 +25,22 @@ export async function draftReply(text, category, priority) {
   });
   return handle(res);
 }
+
+export async function createTicket(text) {
+  const res = await fetch(`${API_URL}/api/tickets`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+  return handle(res);
+}
+
+export async function listTickets() {
+  const res = await fetch(`${API_URL}/api/tickets`);
+  return handle(res);
+}
+
+export async function getTicket(id) {
+  const res = await fetch(`${API_URL}/api/tickets/${id}`);
+  return handle(res);
+}

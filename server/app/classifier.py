@@ -1,7 +1,8 @@
 import json
 import time
 
-from .llm_client import get_llm
+from .llm_client import get_llm, get_fallback_llm
+from openai import RateLimitError, APIConnectionError, APITimeoutError
 from .prompt import build_messages
 from .schema import parse_and_validate, ClassificationError, _clean_raw_text
 from .similar_tickets import find_similar_tickets, TOOLS_SPEC
@@ -18,16 +19,47 @@ class LLMCallError(Exception):
         self.cause = cause
 
 
+MAX_RETRIES = 2
+RETRY_BASE_DELAY = 2  # seconds; doubles each retry (2s, then 4s)
+
+
+def _call_once(llm, messages, tools):
+    kwargs = dict(model=llm["model"], messages=messages, temperature=0.2, max_tokens=400)
+    if tools:
+        kwargs["tools"] = tools
+    completion = llm["client"].chat.completions.create(**kwargs)
+    return completion.choices[0].message
+
+
 def _call_model(messages, tools=None):
     llm = get_llm()
-    try:
-        kwargs = dict(model=llm["model"], messages=messages, temperature=0.2, max_tokens=400)
-        if tools:
-            kwargs["tools"] = tools
-        completion = llm["client"].chat.completions.create(**kwargs)
-        return completion.choices[0].message, llm["provider"], llm["model"]
-    except Exception as e:
-        raise LLMCallError(f"Call to {llm['provider']} ({llm['model']}) failed: {e}", cause=e)
+    last_error = None
+
+    # Retry the primary provider a couple times - covers transient blips
+    # like rate limits or a dropped connection.
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            message = _call_once(llm, messages, tools)
+            return message, llm["provider"], llm["model"]
+        except (RateLimitError, APIConnectionError, APITimeoutError) as e:
+            last_error = e
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_BASE_DELAY * (2 ** attempt))
+        except Exception as e:
+            last_error = e
+            break  # not a transient error - no point retrying the same provider
+
+    # Primary provider is still down - fail over to the other configured
+    # provider once, so a single provider outage doesn't take the demo down.
+    fallback = get_fallback_llm()
+    if fallback:
+        try:
+            message = _call_once(fallback, messages, tools)
+            return message, fallback["provider"], fallback["model"]
+        except Exception as e:
+            last_error = e
+
+    raise LLMCallError(f"Call to {llm['provider']} ({llm['model']}) failed: {last_error}", cause=last_error)
 
 
 def _run_tool(name: str, arguments: dict):

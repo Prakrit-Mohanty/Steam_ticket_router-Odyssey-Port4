@@ -11,11 +11,43 @@ function confidenceColor(confidence) {
 export default function ResultCard({ result }) {
   const [showJson, setShowJson] = useState(false);
   if (!result) return null;
-  const { category, priority, assigned_team, reasoning, confidence, meta } = result;
+  const {
+    ticket_number,
+    category,
+    priority,
+    department,
+    assigned_to,
+    assigned_role,
+    work_item_description,
+    estimated_resolution,
+    reasoning,
+    confidence,
+    meta,
+  } = result;
   const isLowConfidence = confidence < LOW_CONFIDENCE_THRESHOLD;
 
   return (
     <div className="result-card">
+      {ticket_number && (
+        <div className="ticket-created-banner">
+          ✅ Ticket <strong>{ticket_number}</strong> created —{" "}
+          {assigned_to ? (
+            <>assigned to <strong>{assigned_to}</strong> ({assigned_role})</>
+          ) : (
+            "waiting to be assigned"
+          )}
+        </div>
+      )}
+      {estimated_resolution && (
+        <p className="panel-sub" style={{ marginBottom: 12 }}>
+          ⏱ Estimated resolution time: <strong>{estimated_resolution}</strong>
+        </p>
+      )}
+
+      {work_item_description && (
+        <div className="reasoning" style={{ marginBottom: 12 }}>{work_item_description}</div>
+      )}
+
       <div className="result-grid">
         <div className="result-field">
           <label>Category</label>
@@ -28,8 +60,8 @@ export default function ResultCard({ result }) {
           </div>
         </div>
         <div className="result-field">
-          <label>Assigned Team</label>
-          <div className="value">{assigned_team}</div>
+          <label>Department</label>
+          <div className="value">{department || "—"}</div>
         </div>
       </div>
 

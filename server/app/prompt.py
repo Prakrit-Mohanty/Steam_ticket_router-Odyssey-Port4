@@ -9,6 +9,7 @@ Required JSON shape:
 {{
   "category": one of {CATEGORIES},
   "priority": one of {PRIORITIES},
+  "work_item_description": "a clean, professional one-sentence summary of the actual issue, written for a staff member to scan quickly - not a repeat of the customer's raw wording",
   "reasoning": "one sentence explaining the category and priority choice",
   "confidence": a number between 0 and 1 (your own confidence in this classification)
 }}
@@ -30,13 +31,13 @@ You have access to a tool called find_similar_tickets that searches past resolve
 Examples:
 
 User: "THIS IS RIDICULOUS I've been trying to download my game for 3 hours and it keeps failing at 99%, I paid for this and can't even play!!"
-{{"category":"Game Library & Downloads","priority":"High","reasoning":"Repeated download failure is blocking access to a paid game, urgent despite the angry tone.","confidence":0.92}}
+{{"category":"Game Library & Downloads","priority":"High","work_item_description":"Customer's game download repeatedly fails at 99% completion after multiple attempts.","reasoning":"Repeated download failure is blocking access to a paid game, urgent despite the angry tone.","confidence":0.92}}
 
 User: "cant play"
-{{"category":"General Inquiry","priority":"Low","reasoning":"Message is too vague to identify a specific issue; defaulting to general inquiry pending more detail.","confidence":0.3}}
+{{"category":"General Inquiry","priority":"Low","work_item_description":"Customer reports being unable to play, but provided no further detail on the issue.","reasoning":"Message is too vague to identify a specific issue; defaulting to general inquiry pending more detail.","confidence":0.3}}
 
 User: "I got double charged for a game I can't even launch, not sure if this is billing or a bug"
-{{"category":"Billing & Refunds","priority":"High","reasoning":"Being charged twice is a direct financial harm, more urgent to resolve first than the launch issue, which can be investigated after.","confidence":0.65}}"""
+{{"category":"Billing & Refunds","priority":"High","work_item_description":"Customer was billed twice for a game purchase and also cannot launch the title.","reasoning":"Being charged twice is a direct financial harm, more urgent to resolve first than the launch issue, which can be investigated after.","confidence":0.65}}"""
 
     return [
         {"role": "system", "content": system},

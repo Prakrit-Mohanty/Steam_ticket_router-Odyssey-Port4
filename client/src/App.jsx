@@ -4,6 +4,7 @@ import TicketForm from "./components/TicketForm";
 import BatchDemo from "./components/BatchDemo";
 import ManualVsAIChallenge from "./components/ManualVsAIChallenge";
 import "./App.css";
+import AllTickets from "./components/AllTickets";
 
 export default function App() {
   const [tab, setTab] = useState("classify");
@@ -42,6 +43,7 @@ export default function App() {
           <button className={tab === "classify" ? "active" : ""} onClick={() => goTo("classify")}>Classify</button>
           <button className={tab === "batch" ? "active" : ""} onClick={() => goTo("batch")}>Batch Demo</button>
           <button className={tab === "manual" ? "active" : ""} onClick={() => goTo("manual")}>You vs AI</button>
+          <button className={tab === "tickets" ? "active" : ""} onClick={() => goTo("tickets")}>All Tickets</button>
         </div>
         <a className="nav-cta" href="https://github.com/Prakrit-Mohanty/Steam_ticket_router-Odyssey-Port4" target="_blank" rel="noopener noreferrer">View on GitHub</a>
       </nav>
@@ -66,6 +68,7 @@ export default function App() {
         {tab === "classify" && <TicketForm />}
         {tab === "batch" && <BatchDemo />}
         {tab === "manual" && <ManualVsAIChallenge />}
+        {tab === "tickets" && <AllTickets />}
       </main>
     </div>
   );
