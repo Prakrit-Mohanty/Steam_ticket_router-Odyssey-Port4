@@ -54,6 +54,7 @@ def _serialize_ticket(t: Ticket) -> dict:
         "reasoning": t.reasoning,
         "confidence": t.confidence,
         "department": t.department.name if t.department else None,
+        "assigned_team": t.department.name if t.department else None,
         "assigned_to": t.assigned_staff.name if t.assigned_staff else None,
         "assigned_role": t.assigned_staff.role if t.assigned_staff else None,
         "created_at": t.created_at.isoformat() if t.created_at else None,

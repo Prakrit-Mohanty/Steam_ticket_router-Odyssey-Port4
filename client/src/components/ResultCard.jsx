@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { draftReply } from "../api";
 
 const LOW_CONFIDENCE_THRESHOLD = 0.5;
 
@@ -10,8 +11,13 @@ function confidenceColor(confidence) {
 
 export default function ResultCard({ result }) {
   const [showJson, setShowJson] = useState(false);
+  const [draftedReply, setDraftedReply] = useState(null);
+  const [draftLoading, setDraftLoading] = useState(false);
+  const [draftError, setDraftError] = useState(null);
+
   if (!result) return null;
   const {
+    text,
     ticket_number,
     category,
     priority,
@@ -26,6 +32,19 @@ export default function ResultCard({ result }) {
   } = result;
   const isLowConfidence = confidence < LOW_CONFIDENCE_THRESHOLD;
 
+  async function handleDraftReply() {
+    setDraftLoading(true);
+    setDraftError(null);
+    try {
+      const data = await draftReply(text, category, priority);
+      setDraftedReply(data.reply);
+    } catch (err) {
+      setDraftError(err.message);
+    } finally {
+      setDraftLoading(false);
+    }
+  }
+
   return (
     <div className="result-card">
       {ticket_number && (
@@ -38,14 +57,15 @@ export default function ResultCard({ result }) {
           )}
         </div>
       )}
+
+      {work_item_description && (
+        <div className="reasoning" style={{ marginBottom: 12 }}>{work_item_description}</div>
+      )}
+
       {estimated_resolution && (
         <p className="panel-sub" style={{ marginBottom: 12 }}>
           ⏱ Estimated resolution time: <strong>{estimated_resolution}</strong>
         </p>
-      )}
-
-      {work_item_description && (
-        <div className="reasoning" style={{ marginBottom: 12 }}>{work_item_description}</div>
       )}
 
       <div className="result-grid">
@@ -86,6 +106,21 @@ export default function ResultCard({ result }) {
           <span>time: {meta.processing_time_ms}ms</span>
           {meta.tool_calls_made > 0 && <span>🔎 checked {meta.tool_calls_made} similar ticket(s)</span>}
           {meta.retried && <span>⟳ needed 1 auto-repair retry</span>}
+        </div>
+      )}
+
+      <div className="row" style={{ marginTop: 12 }}>
+        <button className="btn-glass" onClick={handleDraftReply} disabled={draftLoading}>
+          {draftLoading ? "Drafting…" : "✍️ Draft a Reply"}
+        </button>
+      </div>
+
+      {draftError && <div className="error-box">⚠ {draftError}</div>}
+
+      {draftedReply && (
+        <div className="draft-reply-box">
+          <label className="detail-label">Suggested Reply (review before sending)</label>
+          <p>{draftedReply}</p>
         </div>
       )}
 
